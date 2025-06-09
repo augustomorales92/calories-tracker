@@ -1,103 +1,120 @@
-import Image from "next/image";
+import { CalorieTrackerClient } from '@/components/calorie-tracker-client'
+import { createClient } from '@/lib/supabase/server'
 
-export default function Home() {
+export default async function CalorieTrackerPage() {
+  const supabase = await createClient()
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return (
+      <CalorieTrackerClient
+        user={null}
+        initialFoods={[]}
+        initialMealSections={[]}
+        initialCalorieGoals={null}
+      />
+    )
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) {
+    await supabase.from('profiles').insert({
+      id: user.id,
+      email: user.email,
+      full_name: user.user_metadata?.full_name || ''
+    })
+  }
+
+  // Create default meal sections if they don't exist
+  const { data: sections } = await supabase
+    .from('meal_sections')
+    .select('*')
+    .eq('user_id', user.id)
+
+  if (!sections || sections.length === 0) {
+    const defaultSections = [
+      { name: 'Breakfast', order_index: 0 },
+      { name: 'Lunch', order_index: 1 },
+      { name: 'Dinner', order_index: 2 },
+      { name: 'Snack 1', order_index: 3 },
+      { name: 'Snack 2', order_index: 4 },
+      { name: 'Late Night', order_index: 5 }
+    ]
+
+    await supabase.from('meal_sections').insert(
+      defaultSections.map((section) => ({
+        ...section,
+        user_id: user.id
+      }))
+    )
+  }
+
+  const currentDate = new Date().toISOString().split('T')[0]
+
+  const fetchFoods = supabase
+    .from('foods')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('name')
+
+  const fetchMealSections = supabase
+    .from('meal_sections')
+    .select(
+      `
+        *,
+        meal_entries!meal_entries_meal_section_id_fkey (
+          *,
+          foods (*)
+        )
+      `
+    )
+    .eq('user_id', user.id)
+    .eq('meal_entries.date', currentDate)
+    .order('order_index')
+
+  const fetchDailyGoals = supabase
+    .from('daily_goals')
+    .select('*')
+    .eq('user_id', user.id)
+    .single()
+
+  const [
+    { data: initialFoods },
+    { data: initialMealSections },
+    { data: initialCalorieGoalsData }
+  ] = await Promise.all([fetchFoods, fetchMealSections, fetchDailyGoals])
+
+  let initialCalorieGoals = initialCalorieGoalsData
+
+  if (!initialCalorieGoals) {
+    const { data: newGoals } = await supabase
+      .from('daily_goals')
+      .insert({
+        user_id: user.id,
+        calories: 2000,
+        protein: 150,
+        carbs: 200,
+        fats: 70
+      })
+      .select()
+      .single()
+    initialCalorieGoals = newGoals
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    <CalorieTrackerClient
+      user={user}
+      initialFoods={initialFoods || []}
+      initialMealSections={initialMealSections || []}
+      initialCalorieGoals={initialCalorieGoals}
+    />
+  )
 }
