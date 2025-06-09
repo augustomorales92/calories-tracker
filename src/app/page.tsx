@@ -34,7 +34,7 @@ const Content = ({
 export default async function CalorieTrackerPage({
   searchParams
 }: {
-  searchParams: { date: string }
+  searchParams: Promise<{ date: string }>
 }) {
   const supabase = await createClient()
 
