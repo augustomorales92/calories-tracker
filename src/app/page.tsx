@@ -1,5 +1,6 @@
 import { CalorieTrackerClient } from '@/components/calorie-tracker-client'
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 
 export default async function CalorieTrackerPage() {
   const supabase = await createClient()
@@ -9,14 +10,7 @@ export default async function CalorieTrackerPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return (
-      <CalorieTrackerClient
-        user={null}
-        initialFoods={[]}
-        initialMealSections={[]}
-        initialCalorieGoals={null}
-      />
-    )
+    redirect('/login')
   }
 
   const { data: profile } = await supabase

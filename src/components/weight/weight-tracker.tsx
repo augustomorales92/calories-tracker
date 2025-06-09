@@ -158,7 +158,7 @@ export function WeightTracker({ userId }: { userId: string }) {
     <div className="space-y-6">
       {/* Weight Summary */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex items-center justify-center">
           <CardTitle>Weight Summary</CardTitle>
         </CardHeader>
         <CardContent>

@@ -1,6 +1,5 @@
 'use client'
 
-import { AuthForm } from '@/components/auth/auth-form'
 import { DatePicker } from '@/components/date-picker'
 import { ProgressCharts } from '@/components/progress/progress-charts'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +34,7 @@ import {
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { BulkFoodImport } from './food-bulk-import'
+import { Combobox } from './ui/combobox'
 
 interface Food {
   id: string
@@ -75,13 +75,12 @@ interface CalorieTrackerClientProps {
 }
 
 export function CalorieTrackerClient({
-  user: initialUser,
+  user,
   initialFoods,
   initialMealSections,
   initialCalorieGoals
 }: CalorieTrackerClientProps) {
-  const [user, setUser] = useState(initialUser)
-  const [loading, setLoading] = useState(!initialUser)
+  const [loading, setLoading] = useState(false)
   const [currentView, setCurrentView] = useState<
     'tracker' | 'database' | 'history' | 'settings' | 'progress' | 'weight'
   >('tracker')
@@ -125,17 +124,6 @@ export function CalorieTrackerClient({
       throw new Error('Failed to import foods')
     }
   }
-
-  useEffect(() => {
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
 
   useEffect(() => {
     if (user) {
@@ -319,10 +307,6 @@ export function CalorieTrackerClient({
         Loading...
       </div>
     )
-  }
-
-  if (!user) {
-    return <AuthForm />
   }
 
   return (
@@ -608,40 +592,44 @@ export function CalorieTrackerClient({
 
           <ScrollArea className="h-[calc(100vh-200px)]">
             <div className="space-y-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-              {foods.filter((food) => food.name.toLowerCase().includes(search.toLowerCase())).map((food) => (
-                <Card key={food.id} className="p-2">
-                  <CardContent className="p-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium">{food.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {food.calories_per_100g} cal/100g
-                        </p>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          P: {food.protein_per_100g}g • C: {food.carbs_per_100g}
-                          g • F: {food.fats_per_100g}g
+              {foods
+                .filter((food) =>
+                  food.name.toLowerCase().includes(search.toLowerCase())
+                )
+                .map((food) => (
+                  <Card key={food.id} className="p-2">
+                    <CardContent className="p-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium">{food.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {food.calories_per_100g} cal/100g
+                          </p>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            P: {food.protein_per_100g}g • C:{' '}
+                            {food.carbs_per_100g}g • F: {food.fats_per_100g}g
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingFood(food)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteFood(food.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingFood(food)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteFood(food.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
             </div>
           </ScrollArea>
         </div>
@@ -927,22 +915,19 @@ function MealForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
+      <div className="w-88">
         <Label htmlFor="food">Select Food</Label>
-        <select
-          id="food"
+        <Combobox
+          items={foods.map((food) => ({
+            value: food.id,
+            label: `${food.name} (${food.calories_per_100g} cal/100g)`
+          }))}
           value={selectedFoodId}
-          onChange={(e) => setSelectedFoodId(e.target.value)}
-          className="w-full p-2 border rounded"
-          required
-        >
-          <option value="">Choose a food...</option>
-          {foods.map((food) => (
-            <option key={food.id} value={food.id}>
-              {food.name} ({food.calories_per_100g} cal/100g)
-            </option>
-          ))}
-        </select>
+          onValueChange={setSelectedFoodId}
+          placeholder="Search for a food..."
+          emptyText="No foods found"
+          className="w-full"
+        />
       </div>
       <div>
         <Label htmlFor="quantity">Quantity (grams)</Label>
