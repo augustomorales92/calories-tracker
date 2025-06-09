@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useState } from 'react'
+import { BulkFoodImport } from './food-bulk-import'
 
 interface Food {
   id: string
@@ -98,6 +99,32 @@ export function CalorieTrackerClient({
     initialCalorieGoals
   )
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  // Tu función addFood adaptada para bulk import
+  const addFoodsBulk = async (foodsData: Omit<Food, 'id'>[]) => {
+    if (!user) return
+
+    // Preparar los datos para inserción en lotes
+    const foodsToInsert = foodsData.map((food) => ({
+      user_id: user.id,
+      name: food.name,
+      calories_per_100g: food.calories_per_100g,
+      protein_per_100g: food.protein_per_100g,
+      carbs_per_100g: food.carbs_per_100g,
+      fats_per_100g: food.fats_per_100g
+    }))
+
+    const { error } = await supabase.from('foods').insert(foodsToInsert)
+
+    if (!error) {
+      // Actualizar el estado local o refrescar los datos
+      console.log(`Successfully imported ${foodsData.length} foods`)
+      // fetchFoods() // Tu función para refrescar la lista
+    } else {
+      throw new Error('Failed to import foods')
+    }
+  }
 
   useEffect(() => {
     const {
@@ -559,19 +586,31 @@ export function CalorieTrackerClient({
       {/* Food Database View */}
       {currentView === 'database' && (
         <div className="p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Food Database</h2>
-            <Button onClick={() => setIsAddFoodOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Food
-            </Button>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-2">
+            <span className="flex-1 w-full">
+              <Input
+                placeholder="Search food"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </span>
+            <span className="flex items-center justify-between gap-2 w-full">
+              <Button onClick={() => setIsAddFoodOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Food
+              </Button>
+              <Button onClick={() => setIsImportOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Import from Excel
+              </Button>
+            </span>
           </div>
 
           <ScrollArea className="h-[calc(100vh-200px)]">
-            <div className="space-y-2">
-              {foods.map((food) => (
-                <Card key={food.id}>
-                  <CardContent className="p-4">
+            <div className="space-y-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+              {foods.filter((food) => food.name.toLowerCase().includes(search.toLowerCase())).map((food) => (
+                <Card key={food.id} className="p-2">
+                  <CardContent className="p-2">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-medium">{food.name}</h3>
@@ -721,6 +760,12 @@ export function CalorieTrackerClient({
           <FoodForm onSubmit={addFood} />
         </DialogContent>
       </Dialog>
+
+      <BulkFoodImport
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onImport={addFoodsBulk}
+      />
 
       {/* Edit Food Dialog */}
       <Dialog open={!!editingFood} onOpenChange={() => setEditingFood(null)}>
