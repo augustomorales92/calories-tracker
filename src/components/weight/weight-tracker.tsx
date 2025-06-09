@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { supabase } from "@/lib/supabase"
 import { Plus, Trash2, Camera } from "lucide-react"
 import { format } from "date-fns"
+import Image from "next/image"
 
 interface WeightEntry {
   id: string
@@ -227,10 +228,12 @@ export function WeightTracker({ userId }: { userId: string }) {
           <div className="grid grid-cols-2 gap-4">
             {progressPhotos.map((photo) => (
               <div key={photo.id} className="relative">
-                <img
+                <Image
                   src={photo.photo_url || "/placeholder.svg"}
                   alt="Progress photo"
                   className="w-full h-48 object-cover rounded"
+                  width={100}
+                  height={100}
                 />
                 <div className="absolute top-2 right-2">
                   <Button
