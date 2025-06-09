@@ -1,8 +1,41 @@
 import { CalorieTrackerClient } from '@/components/calorie-tracker-client'
 import { createClient } from '@/lib/supabase/server'
+import { CalorieGoals, Food, MealSection } from '@/lib/types'
+import { User } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default async function CalorieTrackerPage() {
+const Content = ({
+  currentDate,
+  user,
+  initialFoods,
+  initialMealSections,
+  initialCalorieGoals
+}: {
+  currentDate: string
+  user: User
+  initialFoods: Food[]
+  initialMealSections: MealSection[]
+  initialCalorieGoals: CalorieGoals
+}) => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CalorieTrackerClient
+        initialDate={currentDate}
+        user={user}
+        initialFoods={initialFoods || []}
+        initialMealSections={initialMealSections || []}
+        initialCalorieGoals={initialCalorieGoals}
+      />
+    </Suspense>
+  )
+}
+
+export default async function CalorieTrackerPage({
+  searchParams
+}: {
+  searchParams: { date: string }
+}) {
   const supabase = await createClient()
 
   const {
@@ -51,7 +84,8 @@ export default async function CalorieTrackerPage() {
     )
   }
 
-  const currentDate = new Date().toISOString().split('T')[0]
+  const params = await searchParams
+  const currentDate = params.date ?? new Date().toISOString().split('T')[0]
 
   const fetchFoods = supabase
     .from('foods')
@@ -104,7 +138,8 @@ export default async function CalorieTrackerPage() {
   }
 
   return (
-    <CalorieTrackerClient
+    <Content
+      currentDate={currentDate}
       user={user}
       initialFoods={initialFoods || []}
       initialMealSections={initialMealSections || []}

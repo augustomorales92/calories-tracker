@@ -2,7 +2,6 @@
 
 import { DatePicker } from '@/components/date-picker'
 import { ProgressCharts } from '@/components/progress/progress-charts'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -14,9 +13,9 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { WeightTracker } from '@/components/weight/weight-tracker'
 import { supabase } from '@/lib/supabase'
+import { CalorieGoals, Food, MealEntry, MealSection } from '@/lib/types'
 import type { User } from '@supabase/supabase-js'
 import {
   BarChart3,
@@ -31,76 +30,42 @@ import {
   Utensils,
   Weight
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import type React from 'react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { BulkFoodImport } from './food-bulk-import'
+import { MealsCards } from './meals-cards'
 import { Combobox } from './ui/combobox'
-
-interface Food {
-  id: string
-  name: string
-  calories_per_100g: number
-  protein_per_100g: number
-  carbs_per_100g: number
-  fats_per_100g: number
-}
-
-interface MealEntry {
-  id: string
-  food_id: string
-  meal_section_id: string
-  quantity: number
-  foods: Food
-}
-
-interface MealSection {
-  id: string
-  name: string
-  order_index: number
-  meal_entries: MealEntry[]
-}
-
-interface CalorieGoals {
-  calories: number
-  protein: number
-  carbs: number
-  fats: number
-}
 
 interface CalorieTrackerClientProps {
   user: User | null
   initialFoods: Food[]
   initialMealSections: MealSection[]
   initialCalorieGoals: CalorieGoals | null
+  initialDate: string
 }
 
 export function CalorieTrackerClient({
   user,
-  initialFoods,
-  initialMealSections,
-  initialCalorieGoals
+  initialFoods: foods,
+  initialMealSections: mealSections,
+  initialCalorieGoals: calorieGoals,
+  initialDate
 }: CalorieTrackerClientProps) {
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
   const [currentView, setCurrentView] = useState<
     'tracker' | 'database' | 'history' | 'settings' | 'progress' | 'weight'
   >('tracker')
-  const [foods, setFoods] = useState<Food[]>(initialFoods)
-  const [currentDate, setCurrentDate] = useState(
-    new Date().toISOString().split('T')[0]
-  )
-  const [mealSections, setMealSections] =
-    useState<MealSection[]>(initialMealSections)
+  const [currentDate, setCurrentDate] = useState<string | null>(initialDate)
+
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false)
   const [isAddMealOpen, setIsAddMealOpen] = useState(false)
   const [selectedSection, setSelectedSection] = useState<string>('')
   const [editingFood, setEditingFood] = useState<Food | null>(null)
-  const [calorieGoals, setCalorieGoals] = useState<CalorieGoals | null>(
-    initialCalorieGoals
-  )
+
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [search, setSearch] = useState('')
-  // Tu función addFood adaptada para bulk import
   const addFoodsBulk = async (foodsData: Omit<Food, 'id'>[]) => {
     if (!user) return
 
@@ -125,47 +90,6 @@ export function CalorieTrackerClient({
     }
   }
 
-  useEffect(() => {
-    if (user) {
-      fetchMealSections()
-    }
-  }, [user, currentDate])
-
-  const fetchFoods = async () => {
-    if (!user) return
-
-    const { data } = await supabase
-      .from('foods')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('name')
-
-    setFoods(data || [])
-  }
-
-  const fetchMealSections = async () => {
-    if (!user) return
-
-    setLoading(true)
-    const { data } = await supabase
-      .from('meal_sections')
-      .select(
-        `
-        *,
-        meal_entries!meal_entries_meal_section_id_fkey (
-          *,
-          foods (*)
-        )
-      `
-      )
-      .eq('user_id', user.id)
-      .eq('meal_entries.date', currentDate)
-      .order('order_index')
-
-    setMealSections(data || [])
-    setLoading(false)
-  }
-
   const addFood = async (foodData: Omit<Food, 'id'>) => {
     if (!user) return
 
@@ -180,7 +104,7 @@ export function CalorieTrackerClient({
 
     if (!error) {
       setIsAddFoodOpen(false)
-      fetchFoods()
+      router.push(`?date=${currentDate}`, { scroll: false })
     }
   }
 
@@ -198,14 +122,13 @@ export function CalorieTrackerClient({
 
     if (!error) {
       setEditingFood(null)
-      fetchFoods()
+      router.push(`?date=${currentDate}`, { scroll: false })
     }
   }
 
   const deleteFood = async (foodId: string) => {
     await supabase.from('foods').delete().eq('id', foodId)
-
-    fetchFoods()
+    router.push(`?date=${currentDate}`, { scroll: false })
   }
 
   const addMealEntry = async (
@@ -225,14 +148,13 @@ export function CalorieTrackerClient({
 
     if (!error) {
       setIsAddMealOpen(false)
-      fetchMealSections()
+      router.push(`?date=${currentDate}`, { scroll: false })
     }
   }
 
   const removeMealEntry = async (entryId: string) => {
     await supabase.from('meal_entries').delete().eq('id', entryId)
-
-    fetchMealSections()
+    router.push(`?date=${currentDate}`, { scroll: false })
   }
 
   const updateSectionName = async (sectionId: string, newName: string) => {
@@ -242,8 +164,6 @@ export function CalorieTrackerClient({
       .update({ name: newName })
       .eq('id', sectionId)
       .eq('user_id', user.id)
-
-    fetchMealSections()
   }
 
   const updateDailyGoals = async (goals: CalorieGoals) => {
@@ -256,8 +176,7 @@ export function CalorieTrackerClient({
         ...goals
       })
       .eq('user_id', user.id)
-
-    setCalorieGoals(goals)
+    router.push(`?date=${currentDate}`, { scroll: false })
   }
 
   const calculateNutrition = (entries: MealEntry[]) => {
@@ -291,22 +210,49 @@ export function CalorieTrackerClient({
   }
 
   const changeDate = (direction: 'prev' | 'next') => {
-    const date = new Date(currentDate)
+    const date = new Date(currentDate || '')
     date.setDate(date.getDate() + (direction === 'next' ? 1 : -1))
     const newDate = date.toISOString().split('T')[0]
+
+    // Actualiza el estado
     setCurrentDate(newDate)
+
+    // Cambia la URL
+    router.push(`?date=${newDate}`, { scroll: false })
   }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    )
+  const handleCopyFromYesterday = async () => {
+    const yesterday = new Date(currentDate || '')
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayDate = yesterday.toISOString().split('T')[0]
+    const { data: yesterdayMealEntries } = await supabase
+      .from('meal_entries')
+      .select('*')
+      .eq('user_id', user?.id)
+      .eq('date', yesterdayDate)
+
+    const todayMealSections = yesterdayMealEntries?.map((meal) => {
+      const { id, ...rest } = meal
+      return {
+        ...rest,
+        date: currentDate
+      }
+    })
+
+    if (yesterdayMealEntries) {
+      const { data: mealEntries } = await supabase
+        .from('meal_entries')
+        .insert(todayMealSections)
+        .eq('user_id', user?.id)
+
+      router.push(`?date=${currentDate}`, { scroll: false })
+      return mealEntries
+    }
+    return
   }
 
   return (
@@ -371,7 +317,7 @@ export function CalorieTrackerClient({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <DatePicker
-              date={new Date(currentDate)}
+              date={new Date(currentDate || '')}
               onSelect={(date) => {
                 if (date) {
                   const newDate = date.toISOString().split('T')[0]
@@ -393,8 +339,15 @@ export function CalorieTrackerClient({
           {/* Daily Summary */}
           {calorieGoals && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex items-center justify-between">
                 <CardTitle>Daily Summary</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCopyFromYesterday()}
+                >
+                  Duplicate from yesterday
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
@@ -483,86 +436,12 @@ export function CalorieTrackerClient({
 
           {/* Meal Sections */}
           <div className="space-y-4">
-            {mealSections.map((section) => {
-              const nutrition = calculateNutrition(section.meal_entries || [])
-              return (
-                <Card key={section.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{section.name}</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">
-                          {Math.round(nutrition.calories)} cal
-                        </Badge>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setSelectedSection(section.id)
-                            setIsAddMealOpen(true)
-                          }}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {!section.meal_entries ||
-                    section.meal_entries.length === 0 ? (
-                      <p className="text-muted-foreground text-sm">
-                        No items logged
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {section.meal_entries.map((entry) => {
-                          const entryCalories =
-                            (entry.foods.calories_per_100g * entry.quantity) /
-                            100
-                          return (
-                            <div
-                              key={entry.id}
-                              className="flex items-center justify-between p-2 bg-muted rounded"
-                            >
-                              <div>
-                                <div className="font-medium">
-                                  {entry.foods.name}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {entry.quantity}g •{' '}
-                                  {Math.round(entryCalories)} cal
-                                </div>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeMealEntry(entry.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )
-                        })}
-                        <Separator />
-                        <div className="text-sm space-y-1">
-                          <div className="flex justify-between">
-                            <span>Protein:</span>
-                            <span>{Math.round(nutrition.protein)}g</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Carbs:</span>
-                            <span>{Math.round(nutrition.carbs)}g</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Fats:</span>
-                            <span>{Math.round(nutrition.fats)}g</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })}
+            <MealsCards
+              mealSections={mealSections}
+              setSelectedSection={setSelectedSection}
+              setIsAddMealOpen={setIsAddMealOpen}
+              removeMealEntry={removeMealEntry}
+            />
           </div>
         </div>
       )}
@@ -801,15 +680,32 @@ function FoodForm({
 }) {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
-    calories_per_100g: initialData?.calories_per_100g || 0,
-    protein_per_100g: initialData?.protein_per_100g || 0,
-    carbs_per_100g: initialData?.carbs_per_100g || 0,
-    fats_per_100g: initialData?.fats_per_100g || 0
+    calories_per_100g: String(initialData?.calories_per_100g || ''),
+    protein_per_100g: String(initialData?.protein_per_100g || ''),
+    carbs_per_100g: String(initialData?.carbs_per_100g || ''),
+    fats_per_100g: String(initialData?.fats_per_100g || '')
   })
+
+  const handleNumericChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
+      setFormData({
+        ...formData,
+        [name]: value
+      })
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit(formData)
+    const dataToSubmit = {
+      name: formData.name,
+      calories_per_100g: parseFloat(formData.calories_per_100g) || 0,
+      protein_per_100g: parseFloat(formData.protein_per_100g) || 0,
+      carbs_per_100g: parseFloat(formData.carbs_per_100g) || 0,
+      fats_per_100g: parseFloat(formData.fats_per_100g) || 0
+    }
+    onSubmit(dataToSubmit)
   }
 
   return (
@@ -818,74 +714,61 @@ function FoodForm({
         <Label htmlFor="name">Food Name</Label>
         <Input
           id="name"
+          name="name"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           required
         />
       </div>
+
       <div>
-        <Label htmlFor="calories">Calories per 100g</Label>
+        <Label htmlFor="calories_per_100g">Calories per 100g</Label>
         <Input
-          id="calories"
-          type="number"
+          id="calories_per_100g"
+          name="calories_per_100g"
           value={formData.calories_per_100g}
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              calories_per_100g: Number(e.target.value)
-            })
-          }
+          onChange={handleNumericChange}
+          inputMode="decimal"
           required
         />
       </div>
+
       <div>
-        <Label htmlFor="protein">Protein per 100g (g)</Label>
+        <Label htmlFor="protein_per_100g">Protein per 100g (g)</Label>
         <Input
-          id="protein"
-          type="number"
-          step="0.1"
+          id="protein_per_100g"
+          name="protein_per_100g"
           value={formData.protein_per_100g}
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              protein_per_100g: Number(e.target.value)
-            })
-          }
+          onChange={handleNumericChange}
+          inputMode="decimal"
           required
         />
       </div>
+
       <div>
-        <Label htmlFor="carbs">Carbohydrates per 100g (g)</Label>
+        <Label htmlFor="carbs_per_100g">Carbohydrates per 100g (g)</Label>
         <Input
-          id="carbs"
-          type="number"
-          step="0.1"
+          id="carbs_per_100g"
+          name="carbs_per_100g"
           value={formData.carbs_per_100g}
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              carbs_per_100g: Number(e.target.value)
-            })
-          }
+          onChange={handleNumericChange}
+          inputMode="decimal"
           required
         />
       </div>
+
       <div>
-        <Label htmlFor="fats">Fats per 100g (g)</Label>
+        <Label htmlFor="fats_per_100g">Fats per 100g (g)</Label>
         <Input
-          id="fats"
-          type="number"
-          step="0.1"
+          id="fats_per_100g"
+          name="fats_per_100g"
           value={formData.fats_per_100g}
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              fats_per_100g: Number(e.target.value)
-            })
-          }
+          onChange={handleNumericChange}
+          inputMode="decimal"
           required
         />
       </div>
+
       <Button type="submit" className="w-full">
         {isEditing ? 'Update Food' : 'Add Food'}
       </Button>
@@ -915,7 +798,7 @@ function MealForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="w-88">
+      <div className="w-full">
         <Label htmlFor="food">Select Food</Label>
         <Combobox
           items={foods.map((food) => ({
@@ -933,7 +816,7 @@ function MealForm({
         <Label htmlFor="quantity">Quantity (grams)</Label>
         <Input
           id="quantity"
-          type="number"
+          inputMode="decimal"
           value={quantity}
           onChange={(e) => setQuantity(Number(e.target.value))}
           required
