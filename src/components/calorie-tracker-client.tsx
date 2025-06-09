@@ -569,16 +569,16 @@ export function CalorieTrackerClient({
 
       {/* Food Database View */}
       {currentView === 'database' && (
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 h-full">
           <div className="flex flex-col md:flex-row items-center justify-center gap-2">
-            <span className="flex-1 w-full">
+            <span className="flex w-full">
               <Input
                 placeholder="Search food"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </span>
-            <span className="flex items-center justify-between gap-2 w-full">
+            <span className="flex items-center justify-between md:justify-end gap-2 w-full">
               <Button onClick={() => setIsAddFoodOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Food
@@ -590,7 +590,7 @@ export function CalorieTrackerClient({
             </span>
           </div>
 
-          <ScrollArea className="h-[calc(100vh-200px)]">
+          <ScrollArea className="h-full min-h-[calc(100vh-200px)]">
             <div className="space-y-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
               {foods
                 .filter((food) =>
