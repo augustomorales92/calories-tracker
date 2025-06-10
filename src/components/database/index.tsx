@@ -10,9 +10,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Edit2, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { BulkFoodImport } from '../food-bulk-import'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Label } from '../ui/label'
-import { BulkFoodImport } from '../food-bulk-import'
+import { CameraCapturePage } from './camera-capture-page'
 
 // Food Form Component
 function FoodForm({
@@ -173,6 +174,7 @@ export default function DatabaseComponent({ user }: { user: User }) {
             <Plus className="h-4 w-4 mr-2" />
             Import from Excel
           </Button>
+          <CameraCapturePage />
         </span>
       </div>
 

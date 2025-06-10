@@ -11,7 +11,7 @@ export default function ClientLayout({
   children: React.ReactNode
 }) {
   return (
-    <div>
+    <div className="h-[calc(100vh-5rem)] bg-background">
       <QueryClientProvider client={queryClient}>
         <Header />
         {children}

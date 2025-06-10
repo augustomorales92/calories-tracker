@@ -22,7 +22,7 @@ const ButtonLink = ({
   const pathname = usePathname()
   const isActive = pathname === href
   return (
-    <Link href={href}>
+    <Link href={href} prefetch={true}>
       <Button variant={isActive ? 'default' : 'ghost'} size="sm">
         {children}
       </Button>
@@ -35,7 +35,7 @@ export default function Header() {
     await supabase.auth.signOut()
   }
   return (
-    <div className="sticky top-0 z-50 bg-background border-b">
+    <div className="sticky top-0 z-50 bg-background border-b h-20">
       <div className="flex items-center justify-between p-4">
         <h1 className="text-xl font-bold">Calorie Tracker</h1>
         <div className="flex gap-2">
