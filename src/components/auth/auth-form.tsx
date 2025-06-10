@@ -77,7 +77,7 @@ export function AuthForm() {
     }
 
     setLoading(false)
-    router.push('/')
+    router.push('/dashboard')
   }
 
   return (

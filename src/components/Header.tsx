@@ -8,10 +8,10 @@ import {
   Utensils,
   Weight
 } from 'lucide-react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Button } from './ui/button'
 import Image from 'next/image'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { Button } from './ui/button'
 
 const ButtonLink = ({
   href,
@@ -32,8 +32,10 @@ const ButtonLink = ({
 }
 
 export default function Header() {
+  const router = useRouter()
   const handleSignOut = async () => {
     await supabase.auth.signOut()
+    router.push('/login')
   }
   return (
     <div className="sticky top-0 z-50 bg-background border-b h-20">
