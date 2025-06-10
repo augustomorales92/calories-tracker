@@ -1,14 +1,11 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
-import { Camera, Check, RotateCcw, X } from 'lucide-react'
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { Camera, Check, RotateCcw, RotateCw, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+
+type CameraFacing = 'user' | 'environment'
 
 export function CameraCapturePage() {
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false)
@@ -16,6 +13,11 @@ export function CameraCapturePage() {
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [isVideoReady, setIsVideoReady] = useState<boolean>(false)
   const [isStartingCamera, setIsStartingCamera] = useState<boolean>(false)
+  const [currentCamera, setCurrentCamera] = useState<CameraFacing>('user')
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>(
+    []
+  )
+  const [cameraError, setCameraError] = useState<string | null>(null)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -31,79 +33,122 @@ export function CameraCapturePage() {
     }
   }, [])
 
-  const startCameraAndPlay = useCallback(async () => {
-    // Prevent multiple simultaneous calls
-    if (stream || isStartingCamera) {
-      console.log('Camera already starting or active, skipping...')
-      return
-    }
-
-    setIsStartingCamera(true)
-    console.log('[PASO 1] Iniciando cámara y reproducción...')
-
+  // Get available cameras
+  const getAvailableCameras = useCallback(async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false
-      })
-      console.log('[PASO 2] Permiso de cámara OK.')
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const videoDevices = devices.filter(
+        (device) => device.kind === 'videoinput'
+      )
+      setAvailableCameras(videoDevices)
+      console.log(
+        `Found ${videoDevices.length} camera(s):`,
+        videoDevices.map((d) => d.label)
+      )
+    } catch (error) {
+      console.error('Error enumerating devices:', error)
+    }
+  }, [])
 
-      const videoElement = videoRef.current
-      if (!videoElement) {
-        console.log('Video element not available')
-        setIsStartingCamera(false)
+  const startCameraAndPlay = useCallback(
+    async (facingMode: CameraFacing = currentCamera) => {
+      // Prevent multiple simultaneous calls
+      if (stream || isStartingCamera) {
+        console.log('Camera already starting or active, skipping...')
+        if (stream) {
+          const tracks = stream.getTracks()
+          tracks.forEach((track: MediaStreamTrack) => track.stop())
+          setStream(null)
+        }
         return
       }
 
-      // Clear any existing srcObject first
-      if (videoElement.srcObject) {
-        const existingStream = videoElement.srcObject as MediaStream
-        existingStream.getTracks().forEach((track) => track.stop())
-        videoElement.srcObject = null
-      }
+      setIsStartingCamera(true)
+      setCameraError(null)
+      console.log(
+        `[PASO 1] Iniciando cámara (${
+          facingMode === 'user' ? 'frontal' : 'trasera'
+        })...`
+      )
 
-      // Set new stream and play
-      videoElement.srcObject = mediaStream
-
-      // Wait for loadedmetadata before playing
-      await new Promise<void>((resolve, reject) => {
-        const onLoadedMetadata = () => {
-          videoElement.removeEventListener('loadedmetadata', onLoadedMetadata)
-          resolve()
+      try {
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: facingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
         }
 
-        const onError = () => {
-          videoElement.removeEventListener('error', onError)
-          reject(new Error('Video loading failed'))
+        const mediaStream = await navigator.mediaDevices.getUserMedia(
+          constraints
+        )
+        console.log('[PASO 2] Permiso de cámara OK.')
+
+        const videoElement = videoRef.current
+        if (!videoElement) {
+          console.log('Video element not available')
+          setIsStartingCamera(false)
+          return
         }
 
-        videoElement.addEventListener('loadedmetadata', onLoadedMetadata)
-        videoElement.addEventListener('error', onError)
+        // Clear any existing srcObject first
+        if (videoElement.srcObject) {
+          const existingStream = videoElement.srcObject as MediaStream
+          existingStream.getTracks().forEach((track) => track.stop())
+          videoElement.srcObject = null
+        }
 
-        // Timeout after 5 seconds
-        setTimeout(() => {
-          videoElement.removeEventListener('loadedmetadata', onLoadedMetadata)
-          videoElement.removeEventListener('error', onError)
-          reject(new Error('Video loading timeout'))
-        }, 5000)
-      })
+        // Set new stream and play
+        videoElement.srcObject = mediaStream
 
-      await videoElement.play()
+        // Wait for loadedmetadata before playing
+        await new Promise<void>((resolve, reject) => {
+          const onLoadedMetadata = () => {
+            videoElement.removeEventListener('loadedmetadata', onLoadedMetadata)
+            resolve()
+          }
 
-      console.log('[PASO 3] La reproducción ha comenzado con éxito.')
-      setStream(mediaStream)
-    } catch (error) {
-      console.error('ERROR durante startCameraAndPlay:', error)
-      if (error instanceof Error && error.name === 'NotAllowedError') {
-        alert('Acción bloqueada por el navegador.')
-      } else {
-        alert('Hubo un problema al iniciar la cámara.')
+          const onError = () => {
+            videoElement.removeEventListener('error', onError)
+            reject(new Error('Video loading failed'))
+          }
+
+          videoElement.addEventListener('loadedmetadata', onLoadedMetadata)
+          videoElement.addEventListener('error', onError)
+
+          // Timeout after 5 seconds
+          setTimeout(() => {
+            videoElement.removeEventListener('loadedmetadata', onLoadedMetadata)
+            videoElement.removeEventListener('error', onError)
+            reject(new Error('Video loading timeout'))
+          }, 5000)
+        })
+
+        await videoElement.play()
+
+        console.log('[PASO 3] La reproducción ha comenzado con éxito.')
+        setStream(mediaStream)
+        setCurrentCamera(facingMode)
+      } catch (error: any) {
+        console.error('ERROR durante startCameraAndPlay:', error)
+
+        if (error.name === 'NotAllowedError') {
+          setCameraError('Permisos de cámara denegados')
+        } else if (error.name === 'NotFoundError') {
+          setCameraError('No se encontró la cámara solicitada')
+        } else if (error.name === 'OverconstrainedError') {
+          setCameraError('La cámara no soporta la configuración solicitada')
+        } else {
+          setCameraError('Error al iniciar la cámara')
+        }
+      } finally {
+        setIsStartingCamera(false)
       }
-      setIsDialogOpen(false)
-    } finally {
-      setIsStartingCamera(false)
-    }
-  }, [stream, isStartingCamera])
+    },
+    [stream, isStartingCamera, currentCamera]
+  )
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -118,7 +163,31 @@ export function CameraCapturePage() {
 
     setCapturedImage(null)
     setIsStartingCamera(false)
+    setCameraError(null)
   }, [stream])
+
+  const switchCamera = useCallback(async () => {
+    if (isStartingCamera) return
+
+    const newFacingMode: CameraFacing =
+      currentCamera === 'user' ? 'environment' : 'user'
+    console.log(`Switching from ${currentCamera} to ${newFacingMode}`)
+
+    // Stop current stream
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop())
+      setStream(null)
+    }
+
+    // Start new camera
+    await startCameraAndPlay(newFacingMode)
+  }, [currentCamera, stream, isStartingCamera, startCameraAndPlay])
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      getAvailableCameras()
+    }
+  }, [isDialogOpen, getAvailableCameras])
 
   useEffect(() => {
     if (isDialogOpen && isVideoReady && !capturedImage) {
@@ -180,21 +249,23 @@ export function CameraCapturePage() {
 
   const discardPhoto = useCallback(() => {
     setCapturedImage(null)
+    setCameraError(null)
     // The useEffect will automatically restart the camera when capturedImage becomes null
   }, [])
 
+  const canSwitchCamera = availableCameras.length > 1
+
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      <DialogTitle></DialogTitle>
       <DialogTrigger asChild>
-        <Button className="  py-3 text-lg" size="lg">
+        <Button className="e py-3 text-lg" size="lg">
           <Camera className="w-5 h-5" />
         </Button>
       </DialogTrigger>
 
       <DialogContent className="max-w-4xl p-0 gap-0 bg-black border-0">
         {/* Header estilo WhatsApp */}
-        <div className="flex items-center justify-between p-2 bg-black/80 backdrop-blur-sm relative z-10">
+        <div className="flex items-center justify-between p-4 bg-black/80 backdrop-blur-sm relative z-10">
           <Button
             variant="ghost"
             size="icon"
@@ -203,12 +274,36 @@ export function CameraCapturePage() {
           >
             <X className="w-6 h-6" />
           </Button>
-          <h1 className="text-white font-medium">Cámara</h1>
-          <div className="w-10" />
+          <div className="flex items-center space-x-2">
+            <h1 className="text-white font-medium">Cámara</h1>
+            <span className="text-xs text-gray-300">
+              ({currentCamera === 'user' ? 'Frontal' : 'Trasera'})
+            </span>
+          </div>
+          {canSwitchCamera && !capturedImage && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={switchCamera}
+              disabled={isStartingCamera}
+              className="text-white hover:bg-white/20 disabled:opacity-50"
+              title="Cambiar cámara"
+            >
+              <RotateCw className="w-6 h-6" />
+            </Button>
+          )}
+          {!canSwitchCamera && <div className="w-10" />}
         </div>
 
+        {/* Error message */}
+        {cameraError && (
+          <div className="p-3 bg-red-500 text-white text-center text-sm">
+            {cameraError}
+          </div>
+        )}
+
         {/* Área principal de cámara/preview */}
-        <div className="relative bg-black" style={{ minHeight: '80vh' }}>
+        <div className="relative bg-black" style={{ minHeight: '500px' }}>
           {!capturedImage ? (
             <>
               {/* Feed de cámara en vivo */}
@@ -217,13 +312,35 @@ export function CameraCapturePage() {
                 playsInline
                 muted
                 className="w-full h-full object-cover"
-                style={{ minHeight: '80vh' }}
+                style={{ minHeight: '500px' }}
               />
 
               {/* Loading indicator */}
               {isStartingCamera && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                  <div className="text-white">Iniciando cámara...</div>
+                  <div className="text-white text-center">
+                    <div className="mb-2">Iniciando cámara...</div>
+                    <div className="text-sm text-gray-300">
+                      {currentCamera === 'user'
+                        ? 'Cámara frontal'
+                        : 'Cámara trasera'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Camera switch button (floating) */}
+              {canSwitchCamera && !isStartingCamera && stream && (
+                <div className="absolute top-4 right-4">
+                  <Button
+                    onClick={switchCamera}
+                    variant="ghost"
+                    size="icon"
+                    className="bg-black/50 text-white hover:bg-black/70 rounded-full"
+                    title="Cambiar cámara"
+                  >
+                    <RotateCw className="w-5 h-5" />
+                  </Button>
                 </div>
               )}
 
@@ -231,7 +348,7 @@ export function CameraCapturePage() {
               <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
                 <Button
                   onClick={capturePhoto}
-                  disabled={!stream || isStartingCamera}
+                  disabled={!stream || isStartingCamera || !!cameraError}
                   className="bg-white hover:bg-gray-100 text-black px-8 py-4 text-lg font-medium shadow-lg disabled:opacity-50"
                   size="lg"
                 >
@@ -249,6 +366,11 @@ export function CameraCapturePage() {
                 className="w-full h-full object-contain"
                 style={{ minHeight: '500px' }}
               />
+
+              {/* Camera info overlay */}
+              <div className="absolute top-4 left-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                {currentCamera === 'user' ? 'Cámara frontal' : 'Cámara trasera'}
+              </div>
 
               {/* Botones de aceptar/descartar */}
               <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center space-x-4">

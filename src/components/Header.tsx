@@ -11,6 +11,7 @@ import {
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from './ui/button'
+import Image from 'next/image'
 
 const ButtonLink = ({
   href,
@@ -37,7 +38,13 @@ export default function Header() {
   return (
     <div className="sticky top-0 z-50 bg-background border-b h-20">
       <div className="flex items-center justify-between p-4">
-        <h1 className="text-xl font-bold">Calorie Tracker</h1>
+        <Image
+          src="/app-logo.png"
+          alt="Logo"
+          width={100}
+          height={100}
+          className="w-12 h-12"
+        />
         <div className="flex gap-2">
           <ButtonLink href="/">
             <Calendar className="h-4 w-4" />
