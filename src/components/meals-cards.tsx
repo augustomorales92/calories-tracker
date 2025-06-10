@@ -1,37 +1,42 @@
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import { Badge } from "./ui/badge"
-import { Button } from "./ui/button"
-import { Plus, Trash2 } from "lucide-react"
-import { Separator } from "./ui/separator"
-import { MealEntry, MealSection } from "@/lib/types"
-
+import { MealEntry, MealSection } from '@/lib/types'
+import { Plus, Trash2 } from 'lucide-react'
+import { FoodEntrySkeleton } from './skeletons/meal-food-skeleton'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Separator } from './ui/separator'
 
 const calculateNutrition = (entries: MealEntry[]) => {
-    return entries.reduce(
-      (total, entry) => {
-        const multiplier = entry.quantity / 100
-        return {
-          calories: total.calories + entry.foods.calories_per_100g * multiplier,
-          protein: total.protein + entry.foods.protein_per_100g * multiplier,
-          carbs: total.carbs + entry.foods.carbs_per_100g * multiplier,
-          fats: total.fats + entry.foods.fats_per_100g * multiplier
-        }
-      },
-      { calories: 0, protein: 0, carbs: 0, fats: 0 }
-    )
-  }
-
+  return entries.reduce(
+    (total, entry) => {
+      const multiplier = entry.quantity / 100
+      return {
+        calories: total.calories + entry.foods.calories_per_100g * multiplier,
+        protein: total.protein + entry.foods.protein_per_100g * multiplier,
+        carbs: total.carbs + entry.foods.carbs_per_100g * multiplier,
+        fats: total.fats + entry.foods.fats_per_100g * multiplier
+      }
+    },
+    { calories: 0, protein: 0, carbs: 0, fats: 0 }
+  )
+}
 
 interface MealsCardsProps {
-  mealSections: MealSection[]
+  mealSections: MealSection[] | null
   setSelectedSection: (sectionId: string) => void
   setIsAddMealOpen: (isOpen: boolean) => void
   removeMealEntry: (entryId: string) => void
+  isLoading: boolean
 }
 
-export function MealsCards({ mealSections, setSelectedSection, setIsAddMealOpen, removeMealEntry }: MealsCardsProps) {
-    console.log('mealSections', mealSections)
-  return  mealSections.map((section) => {
+export function MealsCards({
+  mealSections,
+  setSelectedSection,
+  setIsAddMealOpen,
+  removeMealEntry,
+  isLoading
+}: MealsCardsProps) {
+  return mealSections?.map((section) => {
     const nutrition = calculateNutrition(section.meal_entries || [])
     return (
       <Card key={section.id}>
@@ -55,29 +60,25 @@ export function MealsCards({ mealSections, setSelectedSection, setIsAddMealOpen,
           </div>
         </CardHeader>
         <CardContent>
-          {!section.meal_entries ||
-          section.meal_entries.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No items logged
-            </p>
+          {!section.meal_entries || section.meal_entries.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No items logged</p>
           ) : (
             <div className="space-y-2">
               {section.meal_entries.map((entry) => {
                 const entryCalories =
-                  (entry.foods.calories_per_100g * entry.quantity) /
-                  100
+                  (entry.foods.calories_per_100g * entry.quantity) / 100
+                if (isLoading) {
+                  return <FoodEntrySkeleton key={entry.id} />
+                }
                 return (
                   <div
                     key={entry.id}
                     className="flex items-center justify-between p-2 bg-muted rounded"
                   >
                     <div>
-                      <div className="font-medium">
-                        {entry.foods.name}
-                      </div>
+                      <div className="font-medium">{entry.foods.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {entry.quantity}g •{' '}
-                        {Math.round(entryCalories)} cal
+                        {entry.quantity}g • {Math.round(entryCalories)} cal
                       </div>
                     </div>
                     <Button

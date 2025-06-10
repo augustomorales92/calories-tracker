@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { User } from "@supabase/supabase-js"
 
 interface Food {
   id?: string
@@ -30,9 +31,10 @@ interface BulkFoodImportProps {
   onImport: (foods: Omit<Food, "id">[]) => Promise<void>
   isOpen: boolean
   onClose: () => void
+  user: User
 }
 
-export function BulkFoodImport({ onImport, isOpen, onClose }: BulkFoodImportProps) {
+export function BulkFoodImport({ onImport, isOpen, onClose, user }: BulkFoodImportProps) {
   const [parsedFoods, setParsedFoods] = useState<ParsedFood[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
