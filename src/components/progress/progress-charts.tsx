@@ -6,6 +6,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Bar, BarChart } from "recharts"
 import { supabase } from "@/lib/supabase"
 import { format, subDays, parseISO } from "date-fns"
+import LoadingComponent from "../Loading"
 
 interface DailyNutrition {
   date: string
@@ -91,7 +92,7 @@ export function ProgressCharts({ userId }: { userId: string }) {
   }
 
   if (loading) {
-    return <div className="p-4">Loading charts...</div>
+    return <LoadingComponent />
   }
 
   return (

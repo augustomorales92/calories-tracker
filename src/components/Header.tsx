@@ -48,7 +48,7 @@ export default function Header() {
           className="w-12 h-12"
         />
         <div className="flex gap-2">
-          <ButtonLink href="/">
+          <ButtonLink href="/dashboard">
             <Calendar className="h-4 w-4" />
           </ButtonLink>
           <ButtonLink href="/database">

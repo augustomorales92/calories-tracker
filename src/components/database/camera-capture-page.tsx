@@ -444,7 +444,7 @@ export function CameraCapturePage() {
 
               {/* Loading overlay */}
               {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70 min-h-[500px]">
                   <div className="text-white text-center">
                     <div className="mb-2">🎥 Iniciando cámara...</div>
                     <div className="text-sm text-gray-300">
