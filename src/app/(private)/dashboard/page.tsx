@@ -1,4 +1,5 @@
 import Dashboard from '@/components/dashboard'
+import LoadingComponent from '@/components/Loading'
 import { getUserProfile } from '@/services/data'
 import { getUser } from '@/services/server-user'
 import { User } from '@supabase/supabase-js'
@@ -13,7 +14,7 @@ const Content = ({
   user: User
 }) => {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<LoadingComponent />}>
       <Dashboard initialDate={currentDate} user={user} />
     </Suspense>
   )

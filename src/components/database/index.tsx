@@ -11,6 +11,7 @@ import { Edit2, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { BulkFoodImport } from '../food-bulk-import'
+import LoadingComponent from '../Loading'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Label } from '../ui/label'
 import { CameraCapturePage } from './camera-capture-page'
@@ -152,7 +153,7 @@ export default function DatabaseComponent({ user }: { user: User }) {
   }
 
   if (isFoodsLoading) {
-    return <div>Loading...</div>
+    return <LoadingComponent />
   }
 
   return (

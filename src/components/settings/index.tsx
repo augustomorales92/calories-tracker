@@ -15,6 +15,7 @@ import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
+import LoadingComponent from '../Loading'
 
 function SettingsComponent({
   updateSectionName,
@@ -173,7 +174,7 @@ export default function SettingsPage({ user }: { user: User }) {
   })
 
   if (isMealSectionsLoading || isCalorieGoalsLoading) {
-    return <div>Loading...</div>
+    return <LoadingComponent />
   }
 
   return (
