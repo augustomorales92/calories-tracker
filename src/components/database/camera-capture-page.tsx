@@ -323,7 +323,7 @@ export function CameraCapturePage() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-4xl p-0 gap-0 bg-black border-0">
+      <DialogContent className="max-w-4xl p-0 gap-0 bg-black border-0 min-h-[500px]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 bg-black/80 backdrop-blur-sm relative z-10">
           <Button
@@ -457,7 +457,7 @@ export function CameraCapturePage() {
               )}
 
               {/* Camera switch button */}
-              {hasMultipleCameras && stream && !isLoading && (
+            {/*   {hasMultipleCameras && stream && !isLoading && (
                 <div className="absolute top-4 right-4">
                   <Button
                     onClick={switchCamera}
@@ -469,7 +469,7 @@ export function CameraCapturePage() {
                     <RotateCw className="w-5 h-5" />
                   </Button>
                 </div>
-              )}
+              )} */}
 
               {/* Capture button */}
               <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
